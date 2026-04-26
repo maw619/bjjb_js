@@ -109,13 +109,46 @@ export default function App() {
   const [expandedSections, setExpandedSections] = useState({});
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fallbackTimeout = setTimeout(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setError((prev) => prev || `Could not load videos from ${videosEndpoint}. Request timed out.`);
+      setLoading(false);
+    }, 15000);
+
     getVideos()
-      .then((res) => setVideos(Array.isArray(res?.data) ? res.data : []))
+      .then((res) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setVideos(Array.isArray(res?.data) ? res.data : []);
+      })
       .catch((err) => {
+        if (!isMounted) {
+          return;
+        }
+
         const details = err?.response?.data || err.message;
         setError(`Could not load videos from ${videosEndpoint}. ${JSON.stringify(details)}`);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        clearTimeout(fallbackTimeout);
+        setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+      clearTimeout(fallbackTimeout);
+    };
   }, []);
 
   const seriesList = useMemo(() => {
