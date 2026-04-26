@@ -6,16 +6,24 @@ If you see:
 
 `ERR_PACKAGE_PATH_NOT_EXPORTED ... metro ... ./src/lib/TerminalReporter`
 
-you are usually hitting a legacy Expo CLI path (or stale dependencies).
+stop using `npx expo start` for this project and use the local CLI scripts below.
 
-## Use these commands (Windows PowerShell)
+## Fast fix (Windows PowerShell)
 
 ```powershell
 npm uninstall -g expo-cli
 npm run repair:expo
 ```
 
-That script removes `node_modules`, regenerates `package-lock.json`, reinstalls, and starts Expo with `--clear`.
+## Daily start commands
+
+```powershell
+npm run start
+# or, if cache issues:
+npm run start:clear
+```
+
+`prestart` now checks your Node version and warns if legacy global `expo-cli` is still installed.
 
 ## Manual recovery (if needed)
 
@@ -26,7 +34,6 @@ That script removes `node_modules`, regenerates `package-lock.json`, reinstalls,
 
 ## Important
 
-- Prefer `npm run start` (or `npm run start:clear`) over `npx expo start` in this repo.
 - If you still use `npx`, force the modern CLI: `npx expo@54 start --clear`
 - Supported Node range for this project: `>=20 <23`
 
