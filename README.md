@@ -1,36 +1,36 @@
 # bjjbibleotecajs
 
-## Expo startup (Windows) troubleshooting
+## If `npx expo start` fails with `TerminalReporter`
 
-If you see this error:
+If you see:
 
 `ERR_PACKAGE_PATH_NOT_EXPORTED ... metro ... ./src/lib/TerminalReporter`
 
-it usually means your shell is using an older Expo CLI path instead of the SDK 54 local CLI.
+you are usually hitting a legacy Expo CLI path (or stale dependencies).
 
-### Fix steps
+## Use these commands (Windows PowerShell)
 
-1. Use the project scripts (they force the local Expo CLI):
-   - `npm run start`
-   - `npm run android`
-   - `npm run web`
+```powershell
+npm uninstall -g expo-cli
+npm run repair:expo
+```
 
-2. Ensure you are not using the legacy global CLI:
-   - `npm uninstall -g expo-cli`
+That script removes `node_modules`, regenerates `package-lock.json`, reinstalls, and starts Expo with `--clear`.
 
-3. Reinstall dependencies cleanly:
-   - delete `node_modules`
-   - delete `package-lock.json`
-   - run `npm install`
+## Manual recovery (if needed)
 
-4. Clear Expo cache:
-   - `npx expo start --clear`
+1. `npm uninstall -g expo-cli`
+2. Delete `node_modules` and `package-lock.json`
+3. `npm install`
+4. `npm run start:clear`
 
-5. Verify Node version:
-   - this project supports Node `>=20 <23`
-   - check with `node -v`
+## Important
 
-### API host tip (physical device)
+- Prefer `npm run start` (or `npm run start:clear`) over `npx expo start` in this repo.
+- If you still use `npx`, force the modern CLI: `npx expo@54 start --clear`
+- Supported Node range for this project: `>=20 <23`
+
+## API host tip (physical device)
 
 If Expo Go on a physical phone cannot hit your local backend, set:
 
