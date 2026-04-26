@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -70,7 +69,7 @@ export default function App() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <Pressable style={styles.videoRow}>
+              <View style={styles.videoRow}>
                 <View style={styles.thumbnail}>
                   <Text style={styles.thumbnailLabel}>BJJ</Text>
                 </View>
@@ -82,7 +81,7 @@ export default function App() {
                   <Text style={styles.videoMeta}>{formatMeta(item)}</Text>
                   <Text style={styles.videoApi}>/videos/{item.id}/</Text>
                 </View>
-              </Pressable>
+              </View>
             )}
             ListEmptyComponent={<Text style={styles.emptyText}>No videos yet.</Text>}
           />
