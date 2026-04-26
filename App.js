@@ -27,6 +27,18 @@ const getSubtitle = (item) => {
   return "Training video";
 };
 
+const getSectionKey = (item) => {
+  if (item?.section !== undefined && item?.section !== null && item?.section !== "") {
+    return String(item.section);
+  }
+
+  if (item?.category) {
+    return String(item.category);
+  }
+
+  return "Uncategorized";
+};
+
 const getItemApiUrl = (item) => `${videosEndpoint}${item.id}/`;
 
 const getVideoUrl = (item) => {
@@ -39,6 +51,7 @@ const getThumbnailUrl = (item) => {
 
 export default function App() {
   const [videos, setVideos] = useState([]);
+  const [expandedSections, setExpandedSections] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -54,7 +67,28 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
+  const sections = useMemo(() => {
+    const grouped = videos.reduce((acc, video) => {
+      const sectionKey = getSectionKey(video);
+      if (!acc[sectionKey]) {
+        acc[sectionKey] = [];
+      }
+
+      acc[sectionKey].push(video);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
+      .map(([key, data]) => ({
+        key,
+        title: `Section ${key}`,
+        data,
+      }));
+  }, [videos]);
+
   const totalVideos = useMemo(() => videos.length, [videos]);
+  const totalSections = useMemo(() => sections.length, [sections]);
 
   const openExternalLink = useCallback(async (url) => {
     if (!url) {
@@ -70,6 +104,13 @@ export default function App() {
     }
 
     await Linking.openURL(url);
+  }, []);
+
+  const toggleSection = useCallback((sectionKey) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
   }, []);
 
   return (
@@ -88,8 +129,14 @@ export default function App() {
         </View>
 
         <View style={styles.statsCard}>
-          <Text style={styles.statsLabel}>Available videos</Text>
-          <Text style={styles.statsValue}>{loading ? "--" : totalVideos}</Text>
+          <View>
+            <Text style={styles.statsLabel}>Available videos</Text>
+            <Text style={styles.statsValue}>{loading ? "--" : totalVideos}</Text>
+          </View>
+          <View style={styles.sectionStat}>
+            <Text style={styles.sectionStatLabel}>Sections</Text>
+            <Text style={styles.sectionStatValue}>{loading ? "--" : totalSections}</Text>
+          </View>
         </View>
 
         {loading && (
@@ -109,38 +156,63 @@ export default function App() {
         {!loading && !error ? (
           <FlatList
             contentContainerStyle={styles.listContainer}
-            data={videos}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => {
-              const thumbnailUrl = getThumbnailUrl(item);
-              const videoUrl = getVideoUrl(item);
+            data={sections}
+            keyExtractor={(item) => item.key}
+            renderItem={({ item: section }) => {
+              const isExpanded = Boolean(expandedSections[section.key]);
 
               return (
-                <View style={styles.videoCard}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.videoInfo}>
-                    <Text style={styles.videoTitle}>{item.title}</Text>
-                    <Text style={styles.videoSubtitle}>{getSubtitle(item)}</Text>
-
-                    {thumbnailUrl ? (
-                      <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} resizeMode="cover" />
-                    ) : null}
-
-                    <View style={styles.linkRow}>
-                      <Pressable onPress={() => openExternalLink(videoUrl)} hitSlop={8}>
-                        <Text style={styles.videoLink}>Watch video</Text>
-                      </Pressable>
-                      <Pressable onPress={() => openExternalLink(getItemApiUrl(item))} hitSlop={8}>
-                        <Text style={styles.videoLink}>Open API record</Text>
-                      </Pressable>
+                <View style={styles.sectionCard}>
+                  <Pressable style={styles.sectionHeader} onPress={() => toggleSection(section.key)}>
+                    <View>
+                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <Text style={styles.sectionSubtitle}>{section.data.length} videos</Text>
                     </View>
-                  </View>
+                    <Text style={styles.sectionChevron}>{isExpanded ? "▾" : "▸"}</Text>
+                  </Pressable>
+
+                  {isExpanded ? (
+                    <View style={styles.sectionBody}>
+                      {section.data.map((item) => {
+                        const thumbnailUrl = getThumbnailUrl(item);
+                        const videoUrl = getVideoUrl(item);
+
+                        return (
+                          <View key={item.id} style={styles.videoCard}>
+                            <View style={styles.videoInfo}>
+                              <Text style={styles.videoTitle}>{item.title}</Text>
+                              <Text style={styles.videoSubtitle}>{getSubtitle(item)}</Text>
+
+                              {thumbnailUrl ? (
+                                <Image
+                                  source={{ uri: thumbnailUrl }}
+                                  style={styles.thumbnail}
+                                  resizeMode="cover"
+                                />
+                              ) : null}
+
+                              <View style={styles.linkRow}>
+                                <Pressable onPress={() => openExternalLink(videoUrl)} hitSlop={8}>
+                                  <Text style={styles.videoLink}>Watch video</Text>
+                                </Pressable>
+                                <Pressable onPress={() => openExternalLink(getItemApiUrl(item))} hitSlop={8}>
+                                  <Text style={styles.videoLink}>Open API record</Text>
+                                </Pressable>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
                 </View>
               );
             }}
-            ListEmptyComponent={<Text style={styles.empty}>No videos returned from the API yet.</Text>}
+            ListEmptyComponent={(
+              <Text style={styles.empty}>
+                No videos returned from the API yet.
+              </Text>
+            )}
             showsVerticalScrollIndicator={false}
           />
         ) : null}
@@ -227,32 +299,60 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
   },
+  sectionStat: {
+    alignItems: "flex-end",
+  },
+  sectionStatLabel: {
+    color: "#5B6B8A",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  sectionStatValue: {
+    color: "#13284B",
+    fontSize: 20,
+    fontWeight: "700",
+  },
   listContainer: {
     paddingBottom: 16,
     gap: 10,
   },
-  videoCard: {
-    backgroundColor: "#FFFFFF",
+  sectionCard: {
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E3E8F2",
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
   },
-  badge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#E8F0FF",
-    justifyContent: "center",
+  sectionHeader: {
+    backgroundColor: "#13284B",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+  },
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  sectionSubtitle: {
+    color: "#C9D9F6",
+    fontSize: 12,
     marginTop: 2,
   },
-  badgeText: {
-    color: "#1E6EEB",
+  sectionChevron: {
+    color: "#FFFFFF",
+    fontSize: 18,
     fontWeight: "700",
+  },
+  sectionBody: {
+    backgroundColor: "#FFFFFF",
+  },
+  videoCard: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#E3E8F2",
   },
   videoInfo: {
     flex: 1,
