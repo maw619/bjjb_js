@@ -1,13 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Image,
+  Linking,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { API_BASE_URL, getVideos } from "./api/api";
+
+const videosEndpoint = `${API_BASE_URL}/videos/`;
 
 const getSubtitle = (item) => {
   if (item?.instructor) {
@@ -19,6 +25,16 @@ const getSubtitle = (item) => {
   }
 
   return "Training video";
+};
+
+const getItemApiUrl = (item) => `${videosEndpoint}${item.id}/`;
+
+const getVideoUrl = (item) => {
+  return item?.video_url || item?.videoUrl || item?.s3_url || item?.url || null;
+};
+
+const getThumbnailUrl = (item) => {
+  return item?.thumbnail_url || item?.thumbnailUrl || item?.image_url || item?.poster_url || null;
 };
 
 export default function App() {
@@ -33,12 +49,28 @@ export default function App() {
       })
       .catch((err) => {
         const details = err?.response?.data || err.message;
-        setError(`Could not load videos from ${API_BASE_URL}/videos/. ${JSON.stringify(details)}`);
+        setError(`Could not load videos from ${videosEndpoint}. ${JSON.stringify(details)}`);
       })
       .finally(() => setLoading(false));
   }, []);
 
   const totalVideos = useMemo(() => videos.length, [videos]);
+
+  const openExternalLink = useCallback(async (url) => {
+    if (!url) {
+      Alert.alert("Missing URL", "This video does not include a playable URL yet.");
+      return;
+    }
+
+    const supported = await Linking.canOpenURL(url);
+
+    if (!supported) {
+      Alert.alert("Cannot open link", `This device cannot open: ${url}`);
+      return;
+    }
+
+    await Linking.openURL(url);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -46,8 +78,13 @@ export default function App() {
         <View style={styles.heroCard}>
           <Text style={styles.kicker}>BJJ LIBRARY</Text>
           <Text style={styles.heroTitle}>Video Lessons</Text>
-          <Text style={styles.heroDescription}>Browse your latest videos from the API in a clean, app-ready layout.</Text>
-          <Text style={styles.endpoint}>Endpoint: {API_BASE_URL}/videos/</Text>
+          <Text style={styles.heroDescription}>
+            Browse your latest videos from the API in a clean, app-ready layout.
+          </Text>
+          <Pressable onPress={() => openExternalLink(videosEndpoint)} style={styles.endpointButton}>
+            <Text style={styles.endpointLabel}>Endpoint</Text>
+            <Text style={styles.endpointLink}>{videosEndpoint}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.statsCard}>
@@ -74,17 +111,35 @@ export default function App() {
             contentContainerStyle={styles.listContainer}
             data={videos}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => (
-              <View style={styles.videoCard}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{index + 1}</Text>
+            renderItem={({ item, index }) => {
+              const thumbnailUrl = getThumbnailUrl(item);
+              const videoUrl = getVideoUrl(item);
+
+              return (
+                <View style={styles.videoCard}>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.videoInfo}>
+                    <Text style={styles.videoTitle}>{item.title}</Text>
+                    <Text style={styles.videoSubtitle}>{getSubtitle(item)}</Text>
+
+                    {thumbnailUrl ? (
+                      <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} resizeMode="cover" />
+                    ) : null}
+
+                    <View style={styles.linkRow}>
+                      <Pressable onPress={() => openExternalLink(videoUrl)} hitSlop={8}>
+                        <Text style={styles.videoLink}>Watch video</Text>
+                      </Pressable>
+                      <Pressable onPress={() => openExternalLink(getItemApiUrl(item))} hitSlop={8}>
+                        <Text style={styles.videoLink}>Open API record</Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.videoInfo}>
-                  <Text style={styles.videoTitle}>{item.title}</Text>
-                  <Text style={styles.videoSubtitle}>{getSubtitle(item)}</Text>
-                </View>
-              </View>
-            )}
+              );
+            }}
             ListEmptyComponent={<Text style={styles.empty}>No videos returned from the API yet.</Text>}
             showsVerticalScrollIndicator={false}
           />
@@ -130,9 +185,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 10,
   },
-  endpoint: {
+  endpointButton: {
+    borderWidth: 1,
+    borderColor: "#3D5D90",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: "#10213D",
+  },
+  endpointLabel: {
     color: "#89A9E8",
-    fontSize: 12,
+    fontSize: 11,
+    marginBottom: 3,
+    textTransform: "uppercase",
+    fontWeight: "700",
+  },
+  endpointLink: {
+    color: "#B8D0FF",
+    fontSize: 13,
+    textDecorationLine: "underline",
   },
   statsCard: {
     borderRadius: 14,
@@ -167,7 +238,7 @@ const styles = StyleSheet.create({
     borderColor: "#E3E8F2",
     padding: 14,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
   },
   badge: {
@@ -177,6 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F0FF",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 2,
   },
   badgeText: {
     color: "#1E6EEB",
@@ -194,6 +266,25 @@ const styles = StyleSheet.create({
   videoSubtitle: {
     fontSize: 13,
     color: "#60708F",
+    marginBottom: 8,
+  },
+  thumbnail: {
+    width: "100%",
+    height: 160,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: "#EEF3FB",
+  },
+  linkRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  videoLink: {
+    color: "#1E6EEB",
+    fontWeight: "600",
+    textDecorationLine: "underline",
+    fontSize: 12,
   },
   centeredState: {
     alignItems: "center",
