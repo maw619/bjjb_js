@@ -111,15 +111,6 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const fallbackTimeout = setTimeout(() => {
-      if (!isMounted) {
-        return;
-      }
-
-      setError((prev) => prev || `Could not load videos from ${videosEndpoint}. Request timed out.`);
-      setLoading(false);
-    }, 15000);
-
     getVideos()
       .then((res) => {
         if (!isMounted) {
@@ -141,15 +132,26 @@ export default function App() {
           return;
         }
 
-        clearTimeout(fallbackTimeout);
         setLoading(false);
       });
 
     return () => {
       isMounted = false;
-      clearTimeout(fallbackTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      return undefined;
+    }
+
+    const hardStopTimer = setTimeout(() => {
+      setError((prev) => prev || `Could not load videos from ${videosEndpoint}. Request timed out.`);
+      setLoading(false);
+    }, 15000);
+
+    return () => clearTimeout(hardStopTimer);
+  }, [loading]);
 
   const seriesList = useMemo(() => {
     const groupedBySeries = videos.reduce((acc, video) => {
