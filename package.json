@@ -10,10 +10,12 @@
     "doctor": "node ./node_modules/expo/bin/cli doctor",
     "start:clear": "node ./node_modules/expo/bin/cli start --clear",
     "repair:expo": "node ./scripts/repair-expo.js",
-    "prestart": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js",
-    "prestart:clear": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js",
+    "prestart": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js",
+    "prestart:clear": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js",
     "postinstall": "node ./scripts/patch-metro-exports.js",
-    "patch:metro": "node ./scripts/patch-metro-exports.js"
+    "patch:metro": "node ./scripts/patch-metro-exports.js",
+    "check:react": "node ./scripts/check-react-versions.js",
+    "preweb": "node ./scripts/check-react-versions.js"
   },
   "dependencies": {
     "axios": "^1.15.2",
@@ -27,5 +29,9 @@
   "private": true,
   "engines": {
     "node": ">=20 <23"
+  },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }

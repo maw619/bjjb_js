@@ -45,6 +45,16 @@ npm run start:clear
 - If you still use `npx`, force the modern CLI: `npx expo@54 start --clear`
 - Supported Node range for this project: `>=20 <23`
 
+
+## If you get React/React DOM mismatch
+
+If Expo web shows a version mismatch error, run:
+
+```powershell
+npm install react@19.1.0 react-dom@19.1.0 --save-exact
+npm run start:clear
+```
+
 ## API host tip (physical device)
 
 If Expo Go on a physical phone cannot hit your local backend, set:
