@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -103,13 +102,25 @@ const getThumbnailUrl = (item) => item?.thumbnail_url || item?.thumbnailUrl || i
 
 export default function App() {
   const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expandedSeries, setExpandedSeries] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
 
-  useEffect(() => {
+  const loadVideos = useCallback(() => {
     let isMounted = true;
+
+    setLoading(true);
+    setError("");
+
+    const hardStopTimer = setTimeout(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setError(`Could not load videos from ${videosEndpoint}. Request timed out.`);
+      setLoading(false);
+    }, 15000);
 
     getVideos()
       .then((res) => {
@@ -132,26 +143,20 @@ export default function App() {
           return;
         }
 
+        clearTimeout(hardStopTimer);
         setLoading(false);
       });
 
     return () => {
       isMounted = false;
+      clearTimeout(hardStopTimer);
     };
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      return undefined;
-    }
-
-    const hardStopTimer = setTimeout(() => {
-      setError((prev) => prev || `Could not load videos from ${videosEndpoint}. Request timed out.`);
-      setLoading(false);
-    }, 15000);
-
-    return () => clearTimeout(hardStopTimer);
-  }, [loading]);
+    const cleanup = loadVideos();
+    return cleanup;
+  }, [loadVideos]);
 
   const seriesList = useMemo(() => {
     const groupedBySeries = videos.reduce((acc, video) => {
@@ -245,7 +250,6 @@ export default function App() {
 
         {loading ? (
           <View style={styles.centeredState}>
-            <ActivityIndicator size="large" color="#1E6EEB" />
             <Text style={styles.stateText}>Loading your library...</Text>
           </View>
         ) : null}
@@ -254,6 +258,9 @@ export default function App() {
           <View style={styles.errorCard}>
             <Text style={styles.errorTitle}>Unable to load videos</Text>
             <Text style={styles.errorText}>{error}</Text>
+            <Pressable style={styles.retryButton} onPress={loadVideos}>
+              <Text style={styles.retryLabel}>Retry</Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -354,6 +361,8 @@ const styles = StyleSheet.create({
   errorCard: { borderRadius: 14, backgroundColor: "#7F1D1D", borderColor: "#B91C1C", borderWidth: 1, padding: 14 },
   errorTitle: { color: "#FEE2E2", fontSize: 15, fontWeight: "700", marginBottom: 4 },
   errorText: { color: "#FECACA", fontSize: 13 },
+  retryButton: { marginTop: 10, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: "#FEE2E2" },
+  retryLabel: { color: "#7F1D1D", fontSize: 12, fontWeight: "700" },
   listContainer: { paddingBottom: 20, gap: 10 },
   seriesCard: { borderRadius: 14, backgroundColor: "#111827", borderWidth: 1, borderColor: "#1F2937", overflow: "hidden" },
   seriesHeader: { padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#0B1220" },
