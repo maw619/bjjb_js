@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Linking,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -14,19 +12,11 @@ import { API_BASE_URL, getVideos } from "./api/api";
 
 const videosEndpoint = `${API_BASE_URL}/videos/`;
 
-const getSubtitle = (item) => {
-  if (item?.instructor) {
-    return `Instructor: ${item.instructor}`;
-  }
-
-  if (item?.category) {
-    return `Category: ${item.category}`;
-  }
-
-  return "Training video";
+const formatMeta = (item) => {
+  const channel = item?.instructor || item?.category || "BJJ Channel";
+  const level = item?.level ? ` • ${item.level}` : "";
+  return `${channel}${level}`;
 };
-
-const getItemApiUrl = (item) => `${videosEndpoint}${item.id}/`;
 
 export default function App() {
   const [videos, setVideos] = useState([]);
@@ -45,77 +35,58 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  const totalVideos = useMemo(() => videos.length, [videos]);
-
-  const openExternalLink = useCallback(async (url) => {
-    const supported = await Linking.canOpenURL(url);
-
-    if (!supported) {
-      Alert.alert("Cannot open link", `This device cannot open: ${url}`);
-      return;
-    }
-
-    await Linking.openURL(url);
-  }, []);
+  const videoCountText = useMemo(() => `${videos.length} videos`, [videos.length]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.page}>
-        <View style={styles.heroCard}>
-          <Text style={styles.kicker}>BJJ LIBRARY</Text>
-          <Text style={styles.heroTitle}>Video Lessons</Text>
-          <Text style={styles.heroDescription}>Browse your latest videos from the API in a clean, app-ready layout.</Text>
-          <Pressable onPress={() => openExternalLink(videosEndpoint)} style={styles.endpointButton}>
-            <Text style={styles.endpointLabel}>Endpoint</Text>
-            <Text style={styles.endpointLink}>{videosEndpoint}</Text>
-          </Pressable>
-        </View>
+      <View style={styles.container}>
+        <Text style={styles.appName}>BJJ Tube</Text>
+        <Text style={styles.endpoint}>Source: {videosEndpoint}</Text>
 
-        <View style={styles.statsCard}>
-          <Text style={styles.statsLabel}>Available videos</Text>
-          <Text style={styles.statsValue}>{loading ? "--" : totalVideos}</Text>
+        <View style={styles.filterBar}>
+          <Text style={styles.filterText}>Home</Text>
+          <Text style={styles.filterText}>Library</Text>
+          <Text style={styles.filterText}>Saved</Text>
+          <Text style={styles.videoCount}>{loading ? "Loading..." : videoCountText}</Text>
         </View>
 
         {loading && (
-          <View style={styles.centeredState}>
-            <ActivityIndicator size="large" color="#1E6EEB" />
-            <Text style={styles.stateText}>Loading your library...</Text>
+          <View style={styles.centerState}>
+            <ActivityIndicator size="large" color="#ff0000" />
+            <Text style={styles.stateText}>Loading videos...</Text>
           </View>
         )}
 
-        {!loading && error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>Unable to load videos</Text>
+        {!loading && !!error && (
+          <View style={styles.centerState}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : null}
+        )}
 
-        {!loading && !error ? (
+        {!loading && !error && (
           <FlatList
-            contentContainerStyle={styles.listContainer}
             data={videos}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => (
-              <View style={styles.videoCard}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{index + 1}</Text>
-                </View>
-                <View style={styles.videoInfo}>
-                  <Text style={styles.videoTitle}>{item.title}</Text>
-                  <Text style={styles.videoSubtitle}>{getSubtitle(item)}</Text>
-                  <Pressable
-                    onPress={() => openExternalLink(getItemApiUrl(item))}
-                    hitSlop={8}
-                  >
-                    <Text style={styles.videoLink}>Open API record</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={<Text style={styles.empty}>No videos returned from the API yet.</Text>}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <Pressable style={styles.videoRow}>
+                <View style={styles.thumbnail}>
+                  <Text style={styles.thumbnailLabel}>BJJ</Text>
+                </View>
+
+                <View style={styles.videoInfo}>
+                  <Text numberOfLines={2} style={styles.videoTitle}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.videoMeta}>{formatMeta(item)}</Text>
+                  <Text style={styles.videoApi}>/videos/{item.id}/</Text>
+                </View>
+              </Pressable>
+            )}
+            ListEmptyComponent={<Text style={styles.emptyText}>No videos yet.</Text>}
           />
-        ) : null}
+        )}
       </View>
     </SafeAreaView>
   );
@@ -124,157 +95,100 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F2F5FA",
+    backgroundColor: "#0f0f0f",
   },
-  page: {
+  container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 10,
+    paddingHorizontal: 12,
   },
-  heroCard: {
-    borderRadius: 18,
-    backgroundColor: "#13284B",
-    padding: 18,
+  appName: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#ffffff",
+    marginBottom: 4,
+  },
+  endpoint: {
+    color: "#9f9f9f",
+    fontSize: 12,
     marginBottom: 12,
   },
-  kicker: {
-    color: "#AFC8F5",
-    fontSize: 12,
-    letterSpacing: 1,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  heroDescription: {
-    color: "#DEE7FB",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 10,
-  },
-  endpointButton: {
-    borderWidth: 1,
-    borderColor: "#3D5D90",
+  filterBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1b1b1b",
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 9,
-    backgroundColor: "#10213D",
-  },
-  endpointLabel: {
-    color: "#89A9E8",
-    fontSize: 11,
-    marginBottom: 3,
-    textTransform: "uppercase",
-    fontWeight: "700",
-  },
-  endpointLink: {
-    color: "#B8D0FF",
-    fontSize: 13,
-    textDecorationLine: "underline",
-  },
-  statsCard: {
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E3E8F2",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  statsLabel: {
-    color: "#5B6B8A",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  statsValue: {
-    color: "#13284B",
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  listContainer: {
-    paddingBottom: 16,
+    paddingVertical: 8,
+    marginBottom: 10,
     gap: 10,
   },
-  videoCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E3E8F2",
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  filterText: {
+    color: "#ffffff",
+    fontSize: 13,
   },
-  badge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#E8F0FF",
+  videoCount: {
+    marginLeft: "auto",
+    color: "#ff4e45",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  videoRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  thumbnail: {
+    width: 152,
+    height: 86,
+    borderRadius: 10,
+    backgroundColor: "#2d2d2d",
     justifyContent: "center",
     alignItems: "center",
   },
-  badgeText: {
-    color: "#1E6EEB",
+  thumbnailLabel: {
+    color: "#ffffff",
     fontWeight: "700",
+    letterSpacing: 1,
   },
   videoInfo: {
     flex: 1,
+    justifyContent: "center",
   },
   videoTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A2433",
-    marginBottom: 3,
-  },
-  videoSubtitle: {
-    fontSize: 13,
-    color: "#60708F",
-    marginBottom: 6,
-  },
-  videoLink: {
-    color: "#1E6EEB",
-    fontWeight: "600",
-    textDecorationLine: "underline",
-    fontSize: 12,
-  },
-  centeredState: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 30,
-    gap: 10,
-  },
-  stateText: {
-    color: "#60708F",
-    fontSize: 14,
-  },
-  errorCard: {
-    borderRadius: 14,
-    backgroundColor: "#FFF3F2",
-    borderColor: "#F7D0CC",
-    borderWidth: 1,
-    padding: 14,
-  },
-  errorTitle: {
-    color: "#B00020",
+    color: "#ffffff",
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "600",
     marginBottom: 4,
   },
-  errorText: {
-    color: "#8E2A2A",
-    fontSize: 13,
+  videoMeta: {
+    color: "#b4b4b4",
+    fontSize: 12,
+    marginBottom: 2,
   },
-  empty: {
-    marginTop: 6,
-    color: "#60708F",
+  videoApi: {
+    color: "#7aa5ff",
+    fontSize: 11,
+  },
+  centerState: {
+    marginTop: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  stateText: {
+    color: "#b4b4b4",
+  },
+  errorText: {
+    color: "#ff7777",
     textAlign: "center",
+  },
+  emptyText: {
+    color: "#b4b4b4",
+    textAlign: "center",
+    marginTop: 20,
   },
 });
