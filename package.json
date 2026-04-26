@@ -10,12 +10,13 @@
     "doctor": "node ./node_modules/expo/bin/cli doctor",
     "start:clear": "node ./node_modules/expo/bin/cli start --clear",
     "repair:expo": "node ./scripts/repair-expo.js",
-    "prestart": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js",
-    "prestart:clear": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js",
+    "prestart": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js && node ./scripts/check-expo-go-compat.js",
+    "prestart:clear": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js && node ./scripts/check-react-versions.js && node ./scripts/check-expo-go-compat.js",
     "postinstall": "node ./scripts/patch-metro-exports.js",
     "patch:metro": "node ./scripts/patch-metro-exports.js",
     "check:react": "node ./scripts/check-react-versions.js",
-    "preweb": "node ./scripts/check-react-versions.js"
+    "preweb": "node ./scripts/check-react-versions.js",
+    "check:expo-go": "node ./scripts/check-expo-go-compat.js"
   },
   "dependencies": {
     "axios": "^1.15.2",
