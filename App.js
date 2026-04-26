@@ -1,28 +1,71 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList } from "react-native";
-import axios from "axios";
+import { ActivityIndicator, FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { API_BASE_URL, getVideos } from "./api/api";
 
 export default function App() {
   const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    axios.get("http://127.0.0.1:8000/api/videos/") // adjust if needed
-      .then(res => {
-        console.log(res.data);
+    getVideos()
+      .then((res) => {
         setVideos(res.data);
       })
-      .catch(err => console.log(err));
+      .catch((err) => {
+        const details = err?.response?.data || err.message;
+        setError(`Could not load videos from ${API_BASE_URL}/videos/. ${JSON.stringify(details)}`);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <View style={{ marginTop: 50 }}>
-      <FlatList
-        data={videos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <Text>{item.title}</Text>
-        )}
-      />
-    </View>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.header}>DRF Endpoint: {API_BASE_URL}/videos/</Text>
+
+      {loading && <ActivityIndicator size="large" />}
+
+      {!loading && error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {!loading && !error ? (
+        <FlatList
+          data={videos}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.item}>
+              <Text style={styles.title}>{item.title}</Text>
+            </View>
+          )}
+          ListEmptyComponent={<Text style={styles.empty}>No data returned from API.</Text>}
+        />
+      ) : null}
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  header: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  item: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  title: {
+    fontSize: 16,
+  },
+  empty: {
+    marginTop: 16,
+  },
+  error: {
+    color: "#b00020",
+    fontSize: 14,
+  },
+});
