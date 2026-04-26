@@ -9,16 +9,69 @@ import {
 } from "react-native";
 import { getVideos } from "../api/api";
 
-const getSectionKey = (video) => {
-  if (video.section !== undefined && video.section !== null && video.section !== "") {
-    return String(video.section);
+const getSectionKey = (item) => {
+  if (item?.section !== undefined && item?.section !== null && item?.section !== "") {
+    return String(item.section);
   }
 
-  if (video.category !== undefined && video.category !== null && video.category !== "") {
-    return String(video.category);
+  return "General";
+};
+
+const getPathSegments = (value = "") => {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return [];
   }
 
-  return "Uncategorized";
+  try {
+    const maybeUrl = new URL(raw);
+    return decodeURIComponent(maybeUrl.pathname)
+      .split("/")
+      .filter(Boolean);
+  } catch (error) {
+    return decodeURIComponent(raw)
+      .split("/")
+      .filter(Boolean);
+  }
+};
+
+const getSeriesName = (item) => {
+  const explicitSeriesName =
+    item?.series_title ||
+    item?.series_name ||
+    item?.seriesName ||
+    item?.course_title ||
+    item?.course_name ||
+    item?.courseName ||
+    item?.category;
+
+  if (explicitSeriesName && String(explicitSeriesName).trim()) {
+    return String(explicitSeriesName).trim();
+  }
+
+  const pathLikeValue =
+    item?.s3_key ||
+    item?.object_key ||
+    item?.file_path ||
+    item?.path ||
+    item?.video_url ||
+    item?.videoUrl ||
+    item?.s3_url ||
+    item?.url;
+
+  const segments = getPathSegments(pathLikeValue);
+  const bjjIndex = segments.findIndex((segment) => segment.toLowerCase() === "bjj");
+
+  if (bjjIndex >= 0 && segments[bjjIndex + 1]) {
+    return segments[bjjIndex + 1];
+  }
+
+  if (segments.length >= 2) {
+    return segments[segments.length - 2];
+  }
+
+  return "Uncategorized Series";
 };
 
 const extractTitleFromVideoName = (videoTitle = "") => {
@@ -77,7 +130,21 @@ const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
   return `Section ${sectionKey}`;
 };
 
-const bySectionThenId = (a, b) => {
+const getGroupedSectionKey = (item) => {
+  const seriesName = getSeriesName(item);
+  const sectionKey = getSectionKey(item);
+
+  return `${seriesName}:::${sectionKey}`;
+};
+
+const bySeriesThenSectionThenId = (a, b) => {
+  const seriesA = getSeriesName(a);
+  const seriesB = getSeriesName(b);
+
+  if (seriesA !== seriesB) {
+    return seriesA.localeCompare(seriesB, undefined, { numeric: true, sensitivity: "base" });
+  }
+
   const sectionA = getSectionKey(a);
   const sectionB = getSectionKey(b);
 
@@ -97,7 +164,7 @@ export default function HomeScreen() {
     getVideos()
       .then((res) => {
         const payload = Array.isArray(res.data) ? res.data : [];
-        setVideos(payload.sort(bySectionThenId));
+        setVideos(payload.sort(bySeriesThenSectionThenId));
       })
       .catch((err) => console.log(err))
       .finally(() => setIsLoading(false));
@@ -105,23 +172,29 @@ export default function HomeScreen() {
 
   const sections = useMemo(() => {
     const grouped = videos.reduce((acc, video) => {
-      const key = getSectionKey(video);
+      const groupedSectionKey = getGroupedSectionKey(video);
 
-      if (!acc[key]) {
-        acc[key] = [];
+      if (!acc[groupedSectionKey]) {
+        acc[groupedSectionKey] = [];
       }
 
-      acc[key].push(video);
+      acc[groupedSectionKey].push(video);
       return acc;
     }, {});
 
     return Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-      .map(([sectionKey, data]) => ({
-        key: sectionKey,
-        title: getSectionDisplayName(sectionKey, data),
-        data,
-      }));
+      .map(([combinedKey, data]) => {
+        const firstVideo = data[0] || {};
+        const seriesName = getSeriesName(firstVideo);
+        const sectionKey = getSectionKey(firstVideo);
+
+        return {
+          key: combinedKey,
+          title: `${seriesName} — ${getSectionDisplayName(sectionKey, data)}`,
+          data,
+        };
+      });
   }, [videos]);
 
   const toggleSection = (sectionKey) => {
