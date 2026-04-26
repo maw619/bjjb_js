@@ -1,6 +1,5 @@
 import axios from "axios";
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 
 const DEFAULT_PORT = "8000";
 
@@ -12,43 +11,31 @@ const pickHostFromValue = (value = "") => {
   }
 
   try {
-    const parsed = new URL(raw.includes("://") ? raw : `exp://${raw}`);
+    const parsed = new URL(raw.includes("://") ? raw : `http://${raw}`);
     return parsed.hostname || "";
   } catch (error) {
     return raw.split(":")[0] || "";
   }
 };
 
-const getExpoHost = () => {
-  const hostCandidates = [
-    Constants?.expoConfig?.hostUri,
-    Constants?.manifest2?.extra?.expoGo?.debuggerHost,
-    Constants?.manifest?.debuggerHost,
-    Constants?.linkingUri,
-  ];
-
-  return hostCandidates.map((candidate) => pickHostFromValue(candidate)).find(Boolean) || "";
-};
-
-const getDevMachineHost = () => {
-  if (!__DEV__) {
-    return "127.0.0.1";
+const getRuntimeHost = () => {
+  const explicitHost = pickHostFromValue(process.env.EXPO_PUBLIC_API_HOST);
+  if (explicitHost) {
+    return explicitHost;
   }
 
-  const expoHost = getExpoHost();
-
-  if (expoHost) {
-    return expoHost;
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return window.location.hostname || "127.0.0.1";
   }
 
-  if (Platform.OS === "android" && Constants?.isDevice === false) {
+  if (__DEV__ && Platform.OS === "android") {
     return "10.0.2.2";
   }
 
   return "127.0.0.1";
 };
 
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST || getDevMachineHost();
+const API_HOST = getRuntimeHost();
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT || DEFAULT_PORT;
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -57,33 +44,29 @@ const getInitialBaseUrl = () => {
     return `http://${API_HOST}:${API_PORT}/api`;
   }
 
-  if (__DEV__ && Platform.OS === "android" && Constants?.isDevice && configuredBaseUrl.includes("10.0.2.2")) {
-    const expoHost = getExpoHost();
-
-    if (expoHost) {
-      return configuredBaseUrl.replace("10.0.2.2", expoHost);
-    }
-  }
-
   return configuredBaseUrl;
 };
 
 const API_BASE_URL = getInitialBaseUrl();
 
 const buildCandidateBaseUrls = () => {
-  const expoHost = getExpoHost();
+  const explicitHost = pickHostFromValue(process.env.EXPO_PUBLIC_API_HOST);
   const candidates = [
     API_BASE_URL,
     `http://${API_HOST}:${API_PORT}/api`,
   ];
 
-  if (expoHost) {
-    candidates.push(`http://${expoHost}:${API_PORT}/api`);
-    candidates.push(`http://${expoHost}/api`);
+  if (__DEV__) {
+    candidates.push(`http://127.0.0.1:${API_PORT}/api`);
+    candidates.push(`http://localhost:${API_PORT}/api`);
+
+    if (Platform.OS === "android") {
+      candidates.push(`http://10.0.2.2:${API_PORT}/api`);
+    }
   }
 
-  if (Platform.OS === "android" && Constants?.isDevice === false) {
-    candidates.push(`http://10.0.2.2:${API_PORT}/api`);
+  if (explicitHost) {
+    candidates.push(`http://${explicitHost}:${API_PORT}/api`);
   }
 
   return [...new Set(candidates.filter(Boolean))];
