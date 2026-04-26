@@ -74,6 +74,18 @@ const getSeriesName = (item) => {
   return "Uncategorized Series";
 };
 
+const extractTitleFromVideoName = (videoTitle = "") => {
+  const normalizedTitle = String(videoTitle).trim();
+
+  if (!normalizedTitle) {
+    return "";
+  }
+
+  const withoutLeadingIndex = normalizedTitle.replace(/^\d+[\s._-]*/, "");
+
+  return withoutLeadingIndex || normalizedTitle;
+};
+
 const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
   const firstVideoWithSectionName = sectionVideos.find((video) => {
     const candidate =
@@ -95,11 +107,9 @@ const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
     firstVideoWithSectionName?.module_name ||
     firstVideoWithSectionName?.moduleName;
 
-  const firstVideoTitle = sectionVideos.find((video) => video?.title && String(video.title).trim())?.title;
-  const normalizedTitle = String(firstVideoTitle || "").trim();
-  const inferredFromTitle = normalizedTitle
-    ? normalizedTitle.replace(/^\d+[\s._-]*/, "") || normalizedTitle
-    : "";
+  const inferredFromTitle = extractTitleFromVideoName(
+    sectionVideos.find((video) => video?.title && String(video.title).trim())?.title,
+  );
 
   const resolvedName = explicitName ? String(explicitName).trim() : inferredFromTitle;
 

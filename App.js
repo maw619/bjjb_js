@@ -92,6 +92,18 @@ const getSeriesName = (item) => {
   return "Uncategorized Series";
 };
 
+const extractTitleFromVideoName = (videoTitle = "") => {
+  const normalizedTitle = String(videoTitle).trim();
+
+  if (!normalizedTitle) {
+    return "";
+  }
+
+  const withoutLeadingIndex = normalizedTitle.replace(/^\d+[\s._-]*/, "");
+
+  return withoutLeadingIndex || normalizedTitle;
+};
+
 const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
   const firstVideoWithSectionName = sectionVideos.find((video) => {
     const candidate =
@@ -113,11 +125,9 @@ const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
     firstVideoWithSectionName?.module_name ||
     firstVideoWithSectionName?.moduleName;
 
-  const firstVideoTitle = sectionVideos.find((video) => video?.title && String(video.title).trim())?.title;
-  const normalizedTitle = String(firstVideoTitle || "").trim();
-  const inferredFromTitle = normalizedTitle
-    ? normalizedTitle.replace(/^\d+[\s._-]*/, "") || normalizedTitle
-    : "";
+  const inferredFromTitle = extractTitleFromVideoName(
+    sectionVideos.find((video) => video?.title && String(video.title).trim())?.title,
+  );
 
   const resolvedName = explicitName ? String(explicitName).trim() : inferredFromTitle;
 
@@ -143,6 +153,62 @@ const getGroupedSectionKey = (item) => {
   const sectionKey = getSectionKey(item);
 
   return `${seriesName}:::${sectionKey}`;
+};
+
+const extractTitleFromVideoName = (videoTitle = "") => {
+  const normalizedTitle = String(videoTitle).trim();
+
+  if (!normalizedTitle) {
+    return "";
+  }
+
+  const withoutLeadingIndex = normalizedTitle.replace(/^\d+[\s._-]*/, "");
+
+  return withoutLeadingIndex || normalizedTitle;
+};
+
+const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
+  const firstVideoWithSectionName = sectionVideos.find((video) => {
+    const candidate =
+      video?.section_title ||
+      video?.section_name ||
+      video?.sectionName ||
+      video?.module_title ||
+      video?.module_name ||
+      video?.moduleName;
+
+    return Boolean(candidate && String(candidate).trim());
+  });
+
+  const explicitName =
+    firstVideoWithSectionName?.section_title ||
+    firstVideoWithSectionName?.section_name ||
+    firstVideoWithSectionName?.sectionName ||
+    firstVideoWithSectionName?.module_title ||
+    firstVideoWithSectionName?.module_name ||
+    firstVideoWithSectionName?.moduleName;
+
+  const inferredFromTitle = extractTitleFromVideoName(
+    sectionVideos.find((video) => video?.title && String(video.title).trim())?.title,
+  );
+
+  const resolvedName = explicitName ? String(explicitName).trim() : inferredFromTitle;
+
+  if (resolvedName) {
+    const numericKey = /^\d+$/.test(String(sectionKey));
+
+    if (numericKey) {
+      return `Section ${sectionKey} · ${resolvedName}`;
+    }
+
+    return resolvedName;
+  }
+
+  if (!/^\d+$/.test(String(sectionKey))) {
+    return String(sectionKey);
+  }
+
+  return `Section ${sectionKey}`;
 };
 
 const getItemApiUrl = (item) => `${videosEndpoint}${item.id}/`;
