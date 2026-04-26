@@ -21,6 +21,45 @@ const getSectionKey = (video) => {
   return "Uncategorized";
 };
 
+const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
+  const firstVideoWithSectionName = sectionVideos.find((video) => {
+    const candidate =
+      video?.section_title ||
+      video?.section_name ||
+      video?.sectionName ||
+      video?.module_title ||
+      video?.module_name ||
+      video?.moduleName;
+
+    return Boolean(candidate && String(candidate).trim());
+  });
+
+  const explicitName =
+    firstVideoWithSectionName?.section_title ||
+    firstVideoWithSectionName?.section_name ||
+    firstVideoWithSectionName?.sectionName ||
+    firstVideoWithSectionName?.module_title ||
+    firstVideoWithSectionName?.module_name ||
+    firstVideoWithSectionName?.moduleName;
+
+  if (explicitName) {
+    const cleanName = String(explicitName).trim();
+    const numericKey = /^\d+$/.test(String(sectionKey));
+
+    if (numericKey) {
+      return `Section ${sectionKey} · ${cleanName}`;
+    }
+
+    return cleanName;
+  }
+
+  if (!/^\d+$/.test(String(sectionKey))) {
+    return String(sectionKey);
+  }
+
+  return `Section ${sectionKey}`;
+};
+
 const bySectionThenId = (a, b) => {
   const sectionA = getSectionKey(a);
   const sectionB = getSectionKey(b);
@@ -63,7 +102,7 @@ export default function HomeScreen() {
       .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
       .map(([sectionKey, data]) => ({
         key: sectionKey,
-        title: `Section ${sectionKey}`,
+        title: getSectionDisplayName(sectionKey, data),
         data,
       }));
   }, [videos]);
