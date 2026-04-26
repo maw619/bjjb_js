@@ -32,11 +32,127 @@ const getSectionKey = (item) => {
     return String(item.section);
   }
 
-  if (item?.category) {
-    return String(item.category);
+  return "General";
+};
+
+const getPathSegments = (value = "") => {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return [];
   }
 
-  return "Uncategorized";
+  try {
+    const maybeUrl = new URL(raw);
+    return decodeURIComponent(maybeUrl.pathname)
+      .split("/")
+      .filter(Boolean);
+  } catch (error) {
+    return decodeURIComponent(raw)
+      .split("/")
+      .filter(Boolean);
+  }
+};
+
+const getSeriesName = (item) => {
+  const explicitSeriesName =
+    item?.series_title ||
+    item?.series_name ||
+    item?.seriesName ||
+    item?.course_title ||
+    item?.course_name ||
+    item?.courseName ||
+    item?.category;
+
+  if (explicitSeriesName && String(explicitSeriesName).trim()) {
+    return String(explicitSeriesName).trim();
+  }
+
+  const pathLikeValue =
+    item?.s3_key ||
+    item?.object_key ||
+    item?.file_path ||
+    item?.path ||
+    item?.video_url ||
+    item?.videoUrl ||
+    item?.s3_url ||
+    item?.url;
+
+  const segments = getPathSegments(pathLikeValue);
+  const bjjIndex = segments.findIndex((segment) => segment.toLowerCase() === "bjj");
+
+  if (bjjIndex >= 0 && segments[bjjIndex + 1]) {
+    return segments[bjjIndex + 1];
+  }
+
+  if (segments.length >= 2) {
+    return segments[segments.length - 2];
+  }
+
+  return "Uncategorized Series";
+};
+
+const extractTitleFromVideoName = (videoTitle = "") => {
+  const normalizedTitle = String(videoTitle).trim();
+
+  if (!normalizedTitle) {
+    return "";
+  }
+
+  const withoutLeadingIndex = normalizedTitle.replace(/^\d+[\s._-]*/, "");
+
+  return withoutLeadingIndex || normalizedTitle;
+};
+
+const getSectionDisplayName = (sectionKey, sectionVideos = []) => {
+  const firstVideoWithSectionName = sectionVideos.find((video) => {
+    const candidate =
+      video?.section_title ||
+      video?.section_name ||
+      video?.sectionName ||
+      video?.module_title ||
+      video?.module_name ||
+      video?.moduleName;
+
+    return Boolean(candidate && String(candidate).trim());
+  });
+
+  const explicitName =
+    firstVideoWithSectionName?.section_title ||
+    firstVideoWithSectionName?.section_name ||
+    firstVideoWithSectionName?.sectionName ||
+    firstVideoWithSectionName?.module_title ||
+    firstVideoWithSectionName?.module_name ||
+    firstVideoWithSectionName?.moduleName;
+
+  const inferredFromTitle = extractTitleFromVideoName(
+    sectionVideos.find((video) => video?.title && String(video.title).trim())?.title,
+  );
+
+  const resolvedName = explicitName ? String(explicitName).trim() : inferredFromTitle;
+
+  if (resolvedName) {
+    const numericKey = /^\d+$/.test(String(sectionKey));
+
+    if (numericKey) {
+      return `Section ${sectionKey} · ${resolvedName}`;
+    }
+
+    return resolvedName;
+  }
+
+  if (!/^\d+$/.test(String(sectionKey))) {
+    return String(sectionKey);
+  }
+
+  return `Section ${sectionKey}`;
+};
+
+const getGroupedSectionKey = (item) => {
+  const seriesName = getSeriesName(item);
+  const sectionKey = getSectionKey(item);
+
+  return `${seriesName}:::${sectionKey}`;
 };
 
 const getItemApiUrl = (item) => `${videosEndpoint}${item.id}/`;
@@ -69,22 +185,28 @@ export default function App() {
 
   const sections = useMemo(() => {
     const grouped = videos.reduce((acc, video) => {
-      const sectionKey = getSectionKey(video);
-      if (!acc[sectionKey]) {
-        acc[sectionKey] = [];
+      const groupedSectionKey = getGroupedSectionKey(video);
+      if (!acc[groupedSectionKey]) {
+        acc[groupedSectionKey] = [];
       }
 
-      acc[sectionKey].push(video);
+      acc[groupedSectionKey].push(video);
       return acc;
     }, {});
 
     return Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-      .map(([key, data]) => ({
-        key,
-        title: `Section ${key}`,
-        data,
-      }));
+      .map(([key, data]) => {
+        const firstVideo = data[0] || {};
+        const seriesName = getSeriesName(firstVideo);
+        const sectionKey = getSectionKey(firstVideo);
+
+        return {
+          key,
+          title: `${seriesName} — ${getSectionDisplayName(sectionKey, data)}`,
+          data,
+        };
+      });
   }, [videos]);
 
   const totalVideos = useMemo(() => videos.length, [videos]);
