@@ -10,8 +10,10 @@
     "doctor": "node ./node_modules/expo/bin/cli doctor",
     "start:clear": "node ./node_modules/expo/bin/cli start --clear",
     "repair:expo": "node ./scripts/repair-expo.js",
-    "prestart": "node ./scripts/check-expo-env.js",
-    "prestart:clear": "node ./scripts/check-expo-env.js"
+    "prestart": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js",
+    "prestart:clear": "node ./scripts/check-expo-env.js && node ./scripts/patch-metro-exports.js",
+    "postinstall": "node ./scripts/patch-metro-exports.js",
+    "patch:metro": "node ./scripts/patch-metro-exports.js"
   },
   "dependencies": {
     "axios": "^1.15.2",

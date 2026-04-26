@@ -6,7 +6,7 @@ If you see:
 
 `ERR_PACKAGE_PATH_NOT_EXPORTED ... metro ... ./src/lib/TerminalReporter`
 
-stop using `npx expo start` for this project and use the local CLI scripts below.
+this repo now auto-applies a Metro compatibility patch after install and before start.
 
 ## Fast fix (Windows PowerShell)
 
@@ -23,14 +23,22 @@ npm run start
 npm run start:clear
 ```
 
-`prestart` now checks your Node version and warns if legacy global `expo-cli` is still installed.
+## If the same error still appears
+
+Run the patch explicitly, then start again:
+
+```powershell
+npm run patch:metro
+npm run start:clear
+```
 
 ## Manual recovery (if needed)
 
 1. `npm uninstall -g expo-cli`
 2. Delete `node_modules` and `package-lock.json`
 3. `npm install`
-4. `npm run start:clear`
+4. `npm run patch:metro`
+5. `npm run start:clear`
 
 ## Important
 

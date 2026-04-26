@@ -20,5 +20,8 @@ if (existsSync('package-lock.json')) {
 console.log('[expo-repair] Installing dependencies...');
 run('npm', ['install']);
 
+console.log('[expo-repair] Applying Metro compatibility patch...');
+run('node', ['./scripts/patch-metro-exports.js']);
+
 console.log('[expo-repair] Clearing Expo cache and starting app...');
 run('node', ['./node_modules/expo/bin/cli', 'start', '--clear']);
